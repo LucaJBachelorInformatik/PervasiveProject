@@ -92,4 +92,5 @@ class MainActivity : AppCompatActivity() {
         series.color = R.color.purple_200
         lineGraphView.addSeries(series)
     }
+    // hi
 }
