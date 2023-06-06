@@ -4,28 +4,30 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
-import androidx.navigation.ui.AppBarConfiguration
 import com.android.volley.toolbox.JsonArrayRequest
 import com.android.volley.toolbox.Volley
 import com.android.volley.Request
 import com.android.volley.RequestQueue
+import com.android.volley.toolbox.JsonObjectRequest
 import com.jjoe64.graphview.GraphView
 import com.jjoe64.graphview.series.DataPoint
 import com.jjoe64.graphview.series.LineGraphSeries
 import hft.pervasive.tempSense.databinding.ActivityMainBinding
 import org.json.JSONObject
 import java.time.LocalDateTime
-import java.time.temporal.Temporal
-import java.util.Date
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var button: Button
+    private lateinit var buttonTest: Button
+    private lateinit var buttonDaily: Button
+    private lateinit var buttonGraph: Button
     private lateinit var lineGraphView: GraphView
     private lateinit var tempAsDataPoints: Array<DataPoint?>
     private lateinit var temperatureModals: MutableList<TemperatureModal>
     private lateinit var volleyQueue: RequestQueue
+
+    // Variable um Graphen die ganze (total) Zeit anzeigen zu lassen oder die täglichen Werte
     private var sizeOfArray = 10000;
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,19 +35,53 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         lineGraphView = findViewById(R.id.idGraphView)
-        button = findViewById(R.id.loadGraphButton)
-        button.setOnClickListener { createGraph() }
-        volleyQueue = Volley.newRequestQueue(this)
-        loadGraphAndJSON()
-    }
-    private fun loadGraphAndJSON(){
-        temperatureModals = mutableListOf()
-        // ArraySize wird nacher zur Größe des JSON Arrays geändert und returned
-        var arraySize = 0;
 
+        buttonTest = findViewById(R.id.buttonTest)
+        buttonTest.setOnClickListener({loadTest()})
+
+        buttonDaily = findViewById(R.id.buttonDaily)
+        buttonDaily.setOnClickListener{loadDaily()}
+
+        buttonGraph = findViewById(R.id.buttonGraph)
+        buttonGraph.setOnClickListener { createGraph() }
+
+        volleyQueue = Volley.newRequestQueue(this)
+    }
+
+    private fun loadTotal(){
+        temperatureModals = mutableListOf()
         // HTTP Request vorbereiten
         val url = "http://34.90.125.247:8080/api/v1/temperatures"
-
+        createJsonRequest(url);
+    }
+    private fun loadDaily(){
+        temperatureModals = mutableListOf()
+        lineGraphView.removeAllSeries()
+        // HTTP Request vorbereiten
+        val url = "http://34.90.125.247:8080/api/v1/temperatures/test/daily"
+        createJsonRequest(url);
+        Log.e("Data", "Temperature modal size: ${temperatureModals.size}")
+    }
+    private fun loadTest(){
+        postReqForTestData()
+        var url = "http://34.90.125.247:8080/api/v1/temperatures/test/daily"
+        createJsonRequest(url)
+    }
+    private fun postReqForTestData(){
+        val url = "http://34.90.125.247:8080/api/v1/temperatures/test/config"
+        val jsonObjectRequest = JsonObjectRequest(
+            Request.Method.POST,
+            url,
+            null,
+            null,
+            null
+        )
+        volleyQueue.add(jsonObjectRequest)
+        Log.e("Data", "Temperature modal size: ${temperatureModals.size}")
+    }
+    private fun createJsonRequest(url: String) {
+        temperatureModals = mutableListOf()
+        lineGraphView.removeAllSeries()
         val jsonArrayRequest = JsonArrayRequest(
             Request.Method.GET,
             url,
@@ -73,12 +109,11 @@ class MainActivity : AppCompatActivity() {
         volleyQueue.add(jsonArrayRequest)
     }
     private fun createGraph(){
-        temperatureModals.sortBy { temperatureModal -> temperatureModal.time.dayOfYear}
         tempAsDataPoints = Array(temperatureModals.size) {DataPoint(1.0,1.0)}
         Log.e("Data", "TempAsDataPoints size: ${tempAsDataPoints.size}")
-        for ((index, tempModal) in temperatureModals.withIndex()) {
-            tempAsDataPoints[index]  = DataPoint(tempModal.time.dayOfYear.toDouble(),
-                                                 tempModal.tempValue)
+        temperatureModals.sortBy{ temperatureModal -> temperatureModal.time.hour}
+        for((index, tempModal) in temperatureModals.withIndex()) {
+            tempAsDataPoints[index] = DataPoint(tempModal.time.hour.toDouble(), tempModal.tempValue)
         }
         for (entry in tempAsDataPoints) {
             Log.e("Data", "TempAsDataPoints: $entry")
@@ -91,6 +126,6 @@ class MainActivity : AppCompatActivity() {
         lineGraphView.viewport.setScrollableY(true)
         series.color = R.color.purple_200
         lineGraphView.addSeries(series)
+        lineGraphView.viewport.scrollToEnd()
     }
-    // hi
 }
